@@ -1,22 +1,38 @@
 package Go_Pool
 
 import (
+	"fmt"
+	"runtime"
 	"sync"
 )
 
 type Pool struct {
 	Tasks       []*Task
 	concurrency int
+	numCPUs     int
 	tasksChan   chan *Task
 	wg          sync.WaitGroup
 }
 
-func NewPool(tasks []*Task, concurrency int) *Pool {
-	return &Pool{
-		Tasks:       tasks,
-		concurrency: concurrency,
-		tasksChan:   make(chan *Task),
-	}
+var pool *Pool
+var once sync.Once
+
+func NewPool(tasks []*Task, concurrency int, numCPUs int) *Pool {
+	once.Do(func() {
+		fmt.Println()
+		pool = &Pool{
+			Tasks:       tasks,
+			concurrency: concurrency,
+			tasksChan:   make(chan *Task),
+		}
+	})
+	SetNumCPUs(numCPUs)
+
+	return pool
+}
+
+func SetNumCPUs(numCPUs int) {
+	pool.numCPUs = runtime.GOMAXPROCS(numCPUs)
 }
 
 func (p *Pool) Run() {

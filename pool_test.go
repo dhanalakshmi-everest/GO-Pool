@@ -38,6 +38,14 @@ func TestNewPool(t *testing.T) {
 	assert.Equal(t, 2, pool1.numCPUs, "No of CPUs used by pool should be 2")
 }
 
+func TestSetNumCPUs(t *testing.T) {
+	pool := NewPool(tasks, 10, 4)
+
+	assert.Equal(t, 4, pool.numCPUs, "No of CPUs used by pool should be 4")
+	pool.SetNumCPUs(2)
+	assert.Equal(t, 2, pool.numCPUs, "No of CPUs used by pool should be 2")
+}
+
 func TestPool_Run(t *testing.T) {
 	pool := NewPool(tasks, 10, 4)
 	pool.Run()

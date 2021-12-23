@@ -1,6 +1,7 @@
 package Go_Pool
 
 import (
+	"errors"
 	"runtime"
 	"sync"
 )
@@ -24,13 +25,20 @@ func NewPool(tasks []*Task, concurrency int, numCPUs int) *Pool {
 			tasksChan:   make(chan *Task),
 		}
 	})
-	SetNumCPUs(numCPUs)
+	pool.SetNumCPUs(numCPUs)
 
 	return pool
 }
 
-func SetNumCPUs(numCPUs int) {
-	pool.numCPUs = runtime.GOMAXPROCS(numCPUs)
+func (p *Pool) SetNumCPUs(numCPUs int) error {
+	if numCPUs < 1 {
+		return errors.New("No of CPUs is a negative number")
+	}
+
+	runtime.GOMAXPROCS(numCPUs)
+	p.numCPUs = numCPUs
+
+	return nil
 }
 
 func (p *Pool) Run() {

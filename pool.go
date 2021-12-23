@@ -1,7 +1,6 @@
 package Go_Pool
 
 import (
-	"fmt"
 	"runtime"
 	"sync"
 )
@@ -19,7 +18,6 @@ var once sync.Once
 
 func NewPool(tasks []*Task, concurrency int, numCPUs int) *Pool {
 	once.Do(func() {
-		fmt.Println()
 		pool = &Pool{
 			Tasks:       tasks,
 			concurrency: concurrency,

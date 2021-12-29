@@ -22,7 +22,7 @@ func NewPool(tasks []*Task, concurrency int, numCPUs int) *Pool {
 		pool = &Pool{
 			Tasks:       tasks,
 			concurrency: concurrency,
-			tasksChan:   make(chan *Task),
+			tasksChan:   make(chan *Task, concurrency),
 		}
 	})
 	pool.SetNumCPUs(numCPUs)

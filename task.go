@@ -1,17 +1,50 @@
 package Go_Pool
 
-import "sync"
+import (
+	"errors"
+	"sync"
+	"time"
+)
+
+var TaskMaxWaitingExceeded = errors.New("Task maximum waiting time exceeded")
+
+type Functionality func() (interface{}, error)
 
 type Task struct {
-	Err error
-	fn  func() error
+	functionality  Functionality
+	arrivalTime    time.Time
+	maxWaitingTime time.Duration
+	Result         chan interface{}
+	Error          error
 }
 
-func NewTask(f func() error) *Task {
-	return &Task{fn: f}
+func NewTask(fn Functionality, maxWaitingTime time.Duration) *Task {
+	return &Task{
+		functionality:  fn,
+		arrivalTime:    time.Now(),
+		maxWaitingTime: maxWaitingTime,
+		Result:         make(chan interface{}, 1),
+	}
 }
 
 func (task *Task) Run(wg *sync.WaitGroup) {
-	task.Err = task.fn()
-	wg.Done()
+	defer wg.Done()
+
+	timeElapsed := time.Since(task.arrivalTime)
+
+	if timeElapsed >= task.maxWaitingTime {
+		task.Error = TaskMaxWaitingExceeded
+		task.Result <- nil
+		return
+	}
+
+	result, error := task.functionality()
+
+	if error != nil {
+		task.Error = error
+		task.Result <- nil
+	} else {
+		task.Result <- result
+	}
+
 }

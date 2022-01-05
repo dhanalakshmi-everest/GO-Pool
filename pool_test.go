@@ -6,28 +6,21 @@ import (
 	"time"
 )
 
-var results = make(chan string, 3)
 var tasks = []*Task{
-	{
-		fn: func() error {
-			time.Sleep(time.Second * 3)
-			results <- "Task1 completed"
-			return nil
-		}},
-	{
-		fn: func() error {
-			time.Sleep(time.Second * 2)
-			results <- "Task2 completed"
-			return nil
-		},
-	},
-	{
-		fn: func() error {
-			time.Sleep(time.Second * 1)
-			results <- "Task3 completed"
-			return nil
-		},
-	},
+	NewTask(func() (interface{}, error) {
+		time.Sleep(time.Second * 3)
+		return "Task1 completed", nil
+	}, time.Minute),
+
+	NewTask(func() (interface{}, error) {
+		time.Sleep(time.Second * 2)
+		return "Task2 completed", nil
+	}, time.Minute),
+
+	NewTask(func() (interface{}, error) {
+		time.Sleep(time.Second * 1)
+		return "Task3 completed", nil
+	}, time.Minute),
 }
 
 func TestNewPool(t *testing.T) {
@@ -42,6 +35,7 @@ func TestSetNumCPUs(t *testing.T) {
 	pool := NewPool(tasks, 10, 4)
 
 	assert.Equal(t, 4, pool.numCPUs, "No of CPUs used by pool should be 4")
+
 	pool.SetNumCPUs(2)
 	assert.Equal(t, 2, pool.numCPUs, "No of CPUs used by pool should be 2")
 }
@@ -49,7 +43,31 @@ func TestSetNumCPUs(t *testing.T) {
 func TestPool_Run(t *testing.T) {
 	pool := NewPool(tasks, 10, 4)
 	pool.Run()
-	assert.Equal(t, <-results, "Task3 completed", "Task3 should be completed first")
-	assert.Equal(t, <-results, "Task2 completed", "Task2 should be completed second")
-	assert.Equal(t, <-results, "Task1 completed", "Task1 should be completed last")
+
+	assert.Equal(t, <-tasks[2].Result, "Task3 completed", "Task3 should be completed first")
+	assert.Equal(t, <-tasks[1].Result, "Task2 completed", "Task2 should be completed second")
+	assert.Equal(t, <-tasks[0].Result, "Task1 completed", "Task1 should be completed last")
+}
+
+func TestPool_Add(t *testing.T) {
+	task1 := NewTask(
+		func() (interface{}, error) {
+			return "Task completed", nil
+		}, time.Minute,
+	)
+
+	pool := NewPool(tasks, 10, 4)
+	pool.Run()
+
+	pool.AddTask(task1)
+	assert.Equal(t, "Task completed", <-task1.Result, "Task should be completed")
+
+	task2 := NewTask(
+		func() (interface{}, error) {
+			return "Task completed", nil
+		}, 0,
+	)
+	pool.AddTask(task2)
+	assert.Equal(t, nil, <-task2.Result, "Task result should be nil")
+
 }

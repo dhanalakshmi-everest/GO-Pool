@@ -51,8 +51,6 @@ func (p *Pool) Run() {
 		p.tasksChan <- task
 	}
 
-	close(p.tasksChan)
-
 	p.wg.Wait()
 }
 
@@ -60,4 +58,13 @@ func (p *Pool) work() {
 	for task := range p.tasksChan {
 		task.Run(&p.wg)
 	}
+}
+
+func (p *Pool) AddTask(task *Task) {
+	p.wg.Add(1)
+	p.tasksChan <- task
+}
+
+func (p *Pool) Close() {
+	close(p.tasksChan)
 }

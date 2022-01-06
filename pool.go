@@ -7,25 +7,26 @@ import (
 )
 
 type Pool struct {
-	Tasks       []*Task
-	concurrency int
-	numCPUs     int
-	tasksChan   chan *Task
-	wg          sync.WaitGroup
+	concurrency      int
+	numCPUs          int
+	tasksChan        chan *Task
+	activeGoRoutines chan bool
+	wg               sync.WaitGroup
 }
 
 var pool *Pool
 var once sync.Once
 
-func NewPool(tasks []*Task, concurrency int, numCPUs int) *Pool {
+func NewPool(concurrency int, numCPUs int) *Pool {
 	once.Do(func() {
 		pool = &Pool{
-			Tasks:       tasks,
-			concurrency: concurrency,
-			tasksChan:   make(chan *Task, concurrency),
+			concurrency:      concurrency,
+			tasksChan:        make(chan *Task, concurrency),
+			activeGoRoutines: make(chan bool, concurrency),
 		}
 	})
 	pool.SetNumCPUs(numCPUs)
+	go pool.schedule()
 
 	return pool
 }
@@ -41,19 +42,6 @@ func (p *Pool) SetNumCPUs(numCPUs int) error {
 	return nil
 }
 
-func (p *Pool) Run() {
-	for i := 0; i < p.concurrency; i++ {
-		go p.work()
-	}
-
-	p.wg.Add(len(p.Tasks))
-	for _, task := range p.Tasks {
-		p.tasksChan <- task
-	}
-
-	p.wg.Wait()
-}
-
 func (p *Pool) work() {
 	for task := range p.tasksChan {
 		task.Run(&p.wg)
@@ -61,10 +49,26 @@ func (p *Pool) work() {
 }
 
 func (p *Pool) AddTask(task *Task) {
+	defer p.wg.Wait()
+
 	p.wg.Add(1)
 	p.tasksChan <- task
+
+}
+
+func (p *Pool) schedule() {
+	for task := range p.tasksChan {
+		p.activeGoRoutines <- true
+		go func() {
+			defer func() {
+				<-p.activeGoRoutines
+			}()
+			task.Run(&p.wg)
+		}()
+	}
 }
 
 func (p *Pool) Close() {
 	close(p.tasksChan)
+	close(p.activeGoRoutines)
 }

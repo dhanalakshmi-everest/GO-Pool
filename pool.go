@@ -24,10 +24,10 @@ func NewPool(concurrency int, numCPUs int) *Pool {
 			tasksChan:        make(chan *Task, concurrency),
 			activeGoRoutines: make(chan bool, concurrency),
 		}
+
+		defer func() { go pool.schedule() }()
 	})
 	pool.SetNumCPUs(numCPUs)
-	go pool.schedule()
-
 	return pool
 }
 

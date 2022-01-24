@@ -2,7 +2,6 @@ package Go_Pool
 
 import (
 	"errors"
-	"sync"
 	"time"
 )
 
@@ -27,8 +26,7 @@ func NewTask(fn Functionality, maxWaitingTime time.Duration) *Task {
 	}
 }
 
-func (task *Task) Run(wg *sync.WaitGroup) {
-	defer wg.Done()
+func (task *Task) Run() {
 
 	timeElapsed := time.Since(task.arrivalTime)
 

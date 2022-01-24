@@ -11,7 +11,6 @@ type Pool struct {
 	numCPUs          int
 	tasksChan        chan *Task
 	activeGoRoutines chan bool
-	wg               sync.WaitGroup
 }
 
 var pool *Pool
@@ -44,16 +43,12 @@ func (p *Pool) SetNumCPUs(numCPUs int) error {
 
 func (p *Pool) work() {
 	for task := range p.tasksChan {
-		task.Run(&p.wg)
+		task.Run()
 	}
 }
 
 func (p *Pool) AddTask(task *Task) {
-	defer p.wg.Wait()
-
-	p.wg.Add(1)
 	p.tasksChan <- task
-
 }
 
 func (p *Pool) schedule() {
@@ -63,7 +58,7 @@ func (p *Pool) schedule() {
 			defer func() {
 				<-p.activeGoRoutines
 			}()
-			task.Run(&p.wg)
+			task.Run()
 		}()
 	}
 }

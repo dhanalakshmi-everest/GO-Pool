@@ -1,0 +1,69 @@
+package Go_Pool
+
+import (
+	"errors"
+	"runtime"
+	"sync"
+)
+
+type Pool struct {
+	concurrency      int
+	numCPUs          int
+	tasksChan        chan *Task
+	activeGoRoutines chan bool
+}
+
+var pool *Pool
+var once sync.Once
+
+func NewPool(concurrency int, numCPUs int) *Pool {
+	once.Do(func() {
+		pool = &Pool{
+			concurrency:      concurrency,
+			tasksChan:        make(chan *Task, concurrency),
+			activeGoRoutines: make(chan bool, concurrency),
+		}
+
+		defer func() { go pool.schedule() }()
+	})
+	pool.SetNumCPUs(numCPUs)
+	return pool
+}
+
+func (p *Pool) SetNumCPUs(numCPUs int) error {
+	if numCPUs < 1 {
+		return errors.New("No of CPUs is a negative number")
+	}
+
+	runtime.GOMAXPROCS(numCPUs)
+	p.numCPUs = numCPUs
+
+	return nil
+}
+
+func (p *Pool) work() {
+	for task := range p.tasksChan {
+		task.Run()
+	}
+}
+
+func (p *Pool) AddTask(task *Task) {
+	p.tasksChan <- task
+}
+
+func (p *Pool) schedule() {
+	for task := range p.tasksChan {
+		p.activeGoRoutines <- true
+		go func() {
+			defer func() {
+				<-p.activeGoRoutines
+			}()
+			task.Run()
+		}()
+	}
+}
+
+func (p *Pool) Close() {
+	close(p.tasksChan)
+	close(p.activeGoRoutines)
+}
